@@ -14,7 +14,17 @@ extern "C" {
 /* Determines the maximal nesting level of the JSON */
 #define JSMN_STREAM_MAX_DEPTH 32
 /* Determines the maximal length a primitive or a string can have */
-#define JSMN_STREAM_BUFFER_SIZE 512
+#define JSMN_STREAM_BUFFER_SIZE 256
+
+typedef enum {
+	JSMN_STREAM_TOKEN_START_OBJECT,
+	JSMN_STREAM_TOKEN_END_OBJECT,
+	JSMN_STREAM_TOKEN_START_ARRAY,
+	JSMN_STREAM_TOKEN_END_ARRAY,
+	JSMN_STREAM_TOKEN_KEY,
+	JSMN_STREAM_TOKEN_STRING,
+	JSMN_STREAM_TOKEN_PRIMITIVE,
+} jsmn_stream_token_t;
 
 /**
  * JSON type identifier. Basic types are:
@@ -49,18 +59,12 @@ typedef enum {
     JSMN_STREAM_PARSING_PRIMITIVE = 2
 } jsmn_streamstate_t;
 
-/**
- * A structure containing callbacks for the parse events.
- */
-typedef struct {
-	void (* start_array_callback)(void *user_arg);
-	void (* end_array_callback)(void *user_arg);
-	void (* start_object_callback)(void *user_arg);
-	void (* end_object_callback)(void *user_arg);
-	void (* object_key_callback)(const char *key, size_t key_length, void *user_arg);
-	void (* string_callback)(const char *value, size_t length, void *user_arg);
-	void (* primitive_callback)(const char *value, size_t length, void *user_arg);
-} jsmn_stream_callbacks_t;
+typedef void (* jsmn_stream_callback_t)(
+	jsmn_stream_token_t token,
+	char const * buf,
+	size_t len,
+	void * user
+);
 
 /**
  * JSON parser. Stores the internal state of the parser and a necessary buffer
@@ -68,7 +72,7 @@ typedef struct {
  */
 typedef struct {
     jsmn_streamstate_t state;
-	jsmn_stream_callbacks_t callbacks; /* callbacks for parse events */
+	jsmn_stream_callback_t callback; /* callbacks for parse events */
 	jsmn_streamtype_t type_stack[JSMN_STREAM_MAX_DEPTH]; /* Stack for storing the type structure */
 	size_t stack_height;
 	char buffer[JSMN_STREAM_BUFFER_SIZE];
@@ -81,7 +85,7 @@ typedef struct {
  * argument that is passed to the callbacks.
  */
 void jsmn_stream_init(jsmn_stream_parser *parser,
-	jsmn_stream_callbacks_t *callbacks, void *user_arg);
+	jsmn_stream_callback_t callback, void *user_arg);
 
 /**
  * Run JSON parser. It incrementally parses a JSON string character by
